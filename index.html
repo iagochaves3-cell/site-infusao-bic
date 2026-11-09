@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Infusão contínua — drogas em BIC v2</title>
+<meta name="description" content="Calculadora de infusão contínua: dose, concentração, volume a aspirar, diluente e velocidade em mL/h com checagem reversa.">
+<style>
+  :root{
+    --bg:#101319; --panel:#181c24; --panel2:#212630; --line:#343c4a;
+    --txt:#eef1f6; --muted:#a3adbd; --accent:#5ee0c0; --accent2:#7db4ff;
+    --warn:#f2c14e; --danger:#ff8080; --ok:#7ee0a1; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--txt); line-height:1.45;
+    padding:18px 16px 48px; max-width:1120px; margin:0 auto;
+  }
+  h1{font-size:clamp(19px,4vw,26px); margin:0 0 4px; letter-spacing:-.2px}
+  h2{font-size:16px; margin:0 0 10px}
+  h3{font-size:12.5px; margin:0 0 8px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em}
+  .sub{color:var(--muted); font-size:13.5px; margin:0 0 14px}
+  .badges{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 16px}
+  .badge{font-size:11.5px; padding:3px 9px; border:1px solid var(--line); border-radius:99px; color:var(--muted); background:var(--panel)}
+  .badge.v{border-color:#2f6b5c; color:var(--accent)}
+  .badge.w{border-color:#6b5a2f; color:var(--warn)}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin:0 0 14px}
+  .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+  .grid2{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+  .field{display:flex; flex-direction:column; gap:5px; min-width:0}
+  label{font-size:12.5px; color:var(--muted); font-weight:600}
+  label .req{color:var(--danger)}
+  input,select{
+    font:inherit; font-size:15px; padding:10px 11px; width:100%;
+    background:var(--panel2); color:var(--txt);
+    border:1px solid #4a5464; border-radius:9px; min-height:44px;
+  }
+  input:focus-visible,select:focus-visible,button:focus-visible{
+    outline:2px solid var(--accent2); outline-offset:2px; border-color:var(--accent2);
+  }
+  input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--danger); background:#2a1e22}
+  .hint{font-size:11.5px; color:var(--muted); min-height:15px}
+  .hint.err{color:var(--danger)}
+  .tabs{display:flex; gap:6px; margin:0 0 12px; flex-wrap:wrap}
+  .tab{
+    font:inherit; font-size:13.5px; font-weight:600; cursor:pointer;
+    padding:9px 14px; border-radius:99px; min-height:40px;
+    background:var(--panel2); color:var(--muted); border:1px solid var(--line);
+  }
+  .tab[aria-selected="true"]{background:var(--accent); color:#07231d; border-color:var(--accent)}
+  .tabs2{display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px}
+  .tabs2 button{
+    font:inherit; font-size:12.5px; cursor:pointer; padding:7px 12px; min-height:36px;
+    border-radius:8px; background:var(--panel2); color:var(--muted); border:1px solid var(--line);
+  }
+  .tabs2 button[aria-pressed="true"]{background:#2d4a44; color:var(--accent); border-color:#2f6b5c}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; max-height:190px; overflow:auto; padding:4px 2px; margin:0 0 10px}
+  .med{
+    font:inherit; font-size:12.5px; cursor:pointer; padding:7px 11px; min-height:34px;
+    border-radius:99px; background:var(--panel2); color:var(--txt); border:1px solid var(--line);
+  }
+  .med[aria-pressed="true"]{background:var(--accent); color:#07231d; border-color:var(--accent); font-weight:700}
+  .kpis{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); margin:0 0 14px}
+  .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px}
+  .kpi .k{display:block; font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+  .kpi .v{display:block; font-size:clamp(19px,3.6vw,24px); font-weight:800; color:var(--accent); margin:3px 0 2px; word-break:break-word}
+  .kpi .n{display:block; font-size:11.5px; color:var(--muted)}
+  .kpi.hero .v{font-size:clamp(24px,5vw,32px)}
+  table{width:100%; border-collapse:collapse; margin:0 0 12px; font-size:13.5px}
+  caption{text-align:left; font-size:12px; color:var(--muted); padding:0 0 6px}
+  th,td{padding:9px 10px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
+  th{background:#2b3240; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); font-weight:700}
+  tbody tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .note,.warnbox,.errbox,.okbox{border-radius:9px; padding:11px 13px; font-size:12.8px; margin:0 0 10px}
+  .note{background:#1e2733; border-left:4px solid var(--accent2); color:#cfe0f5}
+  .warnbox{background:#2e2a1d; border-left:4px solid var(--warn); color:#f3e3b6}
+  .errbox{background:#2e1e22; border-left:4px solid var(--danger); color:#ffc9c9}
+  .okbox{background:#1c2a22; border-left:4px solid var(--ok); color:#c4f0d3}
+  ul.alerts{margin:0; padding-left:18px}
+  ul.alerts li{margin:0 0 5px}
+  .rowbtns{display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 0}
+  button.act{
+    font:inherit; font-size:13.5px; font-weight:600; cursor:pointer;
+    padding:9px 14px; border-radius:9px; min-height:42px;
+    background:var(--panel2); color:var(--txt); border:1px solid #4a5464;
+  }
+  button.act:hover:not(:disabled){background:#2c3341}
+  button.act:disabled{opacity:.45; cursor:not-allowed}
+  button.act.prim{background:var(--accent); color:#07231d; border-color:var(--accent)}
+  .muted{color:var(--muted)}
+  details{border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--panel); margin:0 0 10px}
+  summary{cursor:pointer; font-size:13px; font-weight:600}
+  details[open] summary{margin-bottom:8px}
+  .sr{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
+  @media print{
+    :root{--bg:#fff; --panel:#fff; --panel2:#f5f6f8; --txt:#111; --muted:#555; --line:#bbb; --accent:#0b6b58; --accent2:#14508f}
+    body{max-width:none; padding:0; font-size:11pt}
+    .tabs,.tabs2,.rowbtns,.badges,.chips,#selftest,.noprint{display:none !important}
+    .panel{border:1px solid #999; break-inside:avoid; page-break-inside:avoid}
+    .kpi,table,details,.note,.warnbox,.errbox{break-inside:avoid; page-break-inside:avoid}
+    th{background:#e8eaee}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Infusão contínua — drogas em BIC</h1>
+  <p class="sub">Dose ↔ concentração ↔ mL/h, com correção dimensional e checagem reversa. Todos os números derivam dos dados que você digitar.</p>
+  <div class="badges">
+    <span class="badge v">v2 · 2026-11-08</span>
+    <span class="badge">Offline · sem dependências</span>
+    <span class="badge w">Catálogo sem doses pré-carregadas</span>
+  </div>
+</header>
+
+<main>
+
+<section class="panel" aria-labelledby="h-med">
+  <h2 id="h-med">Medicamento</h2>
+  <div class="field" style="margin-bottom:10px">
+    <label for="busca">Buscar pelo genérico</label>
+    <input id="busca" type="search" placeholder="ex.: noradrenalina" autocomplete="off">
+  </div>
+  <div class="chips" id="meds" role="group" aria-label="Catálogo de medicamentos"></div>
+  <div class="note" role="note">
+    <strong>Postura de segurança:</strong> o catálogo traz apenas nomes genéricos. Nenhuma dose, apresentação ou diluição é preenchida automaticamente — esses campos exigem conferência em bula oficial (ANVISA), diretriz de sociedade ou protocolo institucional, por medicamento, indicação e população.
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="h-pac">
+  <h2 id="h-pac">Paciente e dose</h2>
+  <div class="tabs2" role="group" aria-label="População">
+    <button type="button" data-pop="adulto" aria-pressed="true">Adulto</button>
+    <button type="button" data-pop="pediatrico" aria-pressed="false">Pediátrico</button>
+    <button type="button" data-pop="neonatal" aria-pressed="false">Neonatal</button>
+  </div>
+  <div class="grid">
+    <div class="field">
+      <label for="peso">Peso (kg) <span class="req" aria-hidden="true">*</span></label>
+      <input id="peso" type="number" inputmode="decimal" min="0.3" max="300" step="0.1" placeholder="ex.: 12.5" autocomplete="off">
+      <span class="hint" id="h-peso"></span>
+    </div>
+    <div class="field">
+      <label for="idade">Idade (informativa)</label>
+      <input id="idade" type="text" placeholder="ex.: 3 anos · 12 dias" autocomplete="off">
+      <span class="hint">Não entra no cálculo.</span>
+    </div>
+    <div class="field">
+      <label for="unidade">Unidade da dose</label>
+      <select id="unidade">
+        <option value="mcg/kg/min">mcg/kg/min</option>
+        <option value="mcg/kg/h">mcg/kg/h</option>
+        <option value="mg/kg/min">mg/kg/min</option>
+        <option value="mg/kg/h">mg/kg/h</option>
+        <option value="mcg/min">mcg/min</option>
+        <option value="mcg/h">mcg/h</option>
+        <option value="mg/min">mg/min</option>
+        <option value="mg/h">mg/h</option>
+        <option value="U/kg/min">U/kg/min</option>
+        <option value="U/kg/h">U/kg/h</option>
+        <option value="U/min">U/min</option>
+        <option value="U/h">U/h</option>
+        <option value="mU/kg/min">mU/kg/min</option>
+        <option value="UI/h">UI/h</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="dose">Dose prescrita <span class="req" aria-hidden="true">*</span></label>
+      <input id="dose" type="number" inputmode="decimal" min="0" step="any" placeholder="valor na unidade acima" autocomplete="off">
+      <span class="hint" id="h-dose"></span>
+    </div>
+  </div>
+</section>
+
+<div class="tabs" role="tablist" aria-label="Seção">
+  <button class="tab" id="tab-calc" role="tab" aria-selected="true" aria-controls="p-calc" data-tab="calc">Cálculo</button>
+  <button class="tab" id="tab-eq" role="tab" aria-selected="false" aria-controls="p-eq" data-tab="eq" tabindex="-1">Equalizador K</button>
+  <button class="tab" id="tab-faixa" role="tab" aria-selected="false" aria-controls="p-faixa" data-tab="faixa" tabindex="-1">Faixa e conferência</button>
+  <button class="tab" id="tab-seg" role="tab" aria-selected="false" aria-controls="p-seg" data-tab="seg" tabindex="-1">Segurança</button>
+</div>
+
+<section class="panel" id="p-calc" role="tabpanel" aria-labelledby="tab-calc">
+  <h2>Preparo e diluição</h2>
+  <div class="grid">
+    <div class="field">
+      <label for="ampQtd">Apresentação — teor por frasco/ampola</label>
+      <input id="ampQtd" type="number" inputmode="decimal" min="0" step="any" placeholder="ex.: 50" autocomplete="off">
+      <span class="hint" id="h-ampQtd"></span>
+    </div>
+    <div class="field">
+      <label for="ampUnid">Unidade da apresentação</label>
+      <select id="ampUnid">
+        <option value="mg">mg</option>
+        <option value="mcg">mcg</option>
+        <option value="U">U</option>
+        <option value="UI">UI</option>
+        <option value="mU">mU</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="ampVol">Volume da ampola (mL)</label>
+      <input id="ampVol" type="number" inputmode="decimal" min="0" step="any" placeholder="ex.: 2" autocomplete="off">
+      <span class="hint" id="h-ampVol"></span>
+    </div>
+  </div>
+  <div class="grid" style="margin-top:12px">
+    <div class="field">
+      <label for="totalQtd">Quantidade total no preparo <span class="req" aria-hidden="true">*</span></label>
+      <input id="totalQtd" type="number" inputmode="decimal" min="0" step="any" placeholder="ex.: 16" autocomplete="off">
+      <span class="hint" id="h-totalQtd"></span>
+    </div>
+    <div class="field">
+      <label for="totalUnid">Unidade da quantidade total</label>
+      <select id="totalUnid">
+        <option value="mg">mg</option>
+        <option value="mcg">mcg</option>
+        <option value="U">U</option>
+        <option value="UI">UI</option>
+        <option value="mU">mU</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="volumeFinal">Volume final (mL) <span class="req" aria-hidden="true">*</span></label>
+      <input id="volumeFinal" type="number" inputmode="decimal" min="0" step="any" placeholder="ex.: 250" autocomplete="off">
+      <span class="hint" id="h-volumeFinal"></span>
+    </div>
+    <div class="field">
+      <label for="resolucao">Resolução da bomba (mL/h)</label>
+      <select id="resolucao">
+        <option value="0.01">0,01</option>
+        <option value="0.1" selected>0,1</option>
+        <option value="1">1</option>
+      </select>
+      <span class="hint">Usada no arredondamento.</span>
+    </div>
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label for="diluente">Diluente (confirmar compatibilidade)</label>
+    <input id="diluente" type="text" placeholder="ex.: NaCl 0,9% · SG 5%" autocomplete="off">
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="h-res">
+  <h2 id="h-res">Resultado</h2>
+  <div id="resultado" aria-live="polite">
+    <p class="muted">Informe peso, dose, quantidade total e volume final.</p>
+  </div>
+  <div class="rowbtns">
+    <button class="act" type="button" id="btn-copiar">Copiar resultado</button>
+    <button class="act" type="button" id="btn-imprimir">Imprimir</button>
+    <button class="act" type="button" id="btn-limpar">Limpar</button>
+  </div>
+  <p class="hint" id="status" role="status" aria-live="polite" style="margin-top:8px"></p>
+</section>
+
+<section class="panel" id="p-eq" role="tabpanel" aria-labelledby="tab-eq" hidden>
+  <h2>Equalizador de dose e vazão</h2>
+  <p class="sub" style="margin-bottom:12px">Fator <strong>K = mL/h ÷ valor numérico da dose</strong>. Serve para achar a concentração que faz a bomba correr no número desejado — é aritmética, não validação farmacológica.</p>
+  <div class="grid">
+    <div class="field">
+      <label for="k">Fator K</label>
+      <input id="k" type="number" inputmode="decimal" min="0" step="any" value="1" autocomplete="off">
+      <span class="hint" id="h-k"></span>
+    </div>
+    <div class="field">
+      <label for="vazaoAlvo">Vazão-alvo (mL/h) — opcional</label>
+      <input id="vazaoAlvo" type="number" inputmode="decimal" min="0" step="any" placeholder="deixe vazio para usar K" autocomplete="off">
+      <span class="hint">Se preenchida, vence o K.</span>
+    </div>
+  </div>
+  <div id="eqOut" style="margin-top:14px"></div>
+  <div class="rowbtns" style="margin-top:10px">
+    <button class="act prim" type="button" id="btn-aplicar" disabled>Aplicar volume final ao preparo</button>
+  </div>
+</section>
+
+<section class="panel" id="p-faixa" role="tabpanel" aria-labelledby="tab-faixa" hidden>
+  <h2>Faixa farmacológica e velocidade equivalente</h2>
+  <p class="sub" style="margin-bottom:12px">Preencha a partir de fonte validada. Campos vazios aparecem como “não estabelecido” — o sistema não inventa faixa.</p>
+  <div class="grid2">
+    <div class="field"><label for="fMin">Dose mínima</label><input id="fMin" type="number" inputmode="decimal" min="0" step="any" autocomplete="off"></div>
+    <div class="field"><label for="fUsualMin">Usual inferior</label><input id="fUsualMin" type="number" inputmode="decimal" min="0" step="any" autocomplete="off"></div>
+    <div class="field"><label for="fUsualMax">Usual superior</label><input id="fUsualMax" type="number" inputmode="decimal" min="0" step="any" autocomplete="off"></div>
+    <div class="field"><label for="fMax">Dose máxima</label><input id="fMax" type="number" inputmode="decimal" min="0" step="any" autocomplete="off"></div>
+    <div class="field"><label for="fAbs">Máximo absoluto</label><input id="fAbs" type="number" inputmode="decimal" min="0" step="any" autocomplete="off"></div>
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label for="fonte">Referência clínica / protocolo</label>
+    <input id="fonte" type="text" placeholder="bula, diretriz ou protocolo + ano" autocomplete="off">
+  </div>
+  <div id="faixaOut" style="margin-top:14px"></div>
+</section>
+
+<section class="panel" id="p-seg" role="tabpanel" aria-labelledby="tab-seg" hidden>
+  <h2>Segurança farmacológica</h2>
+  <ul class="alerts muted" style="font-size:12.8px">
+    <li>O site faz <strong>conversão dimensional</strong>, <strong>checagem reversa da dose</strong>, <strong>verificação de volumes</strong> e <strong>sinalização de divergências</strong>. Não é banco de posologias validado.</li>
+    <li>A troca entre famílias de unidade (massa ↔ atividade) é <strong>bloqueada explicitamente</strong>, não convertida em silêncio.</li>
+    <li>Arredondamento pela resolução da bomba é recalculado em dose: desvio acima de 1% é sinalizado.</li>
+    <li>Regra de diluição sem fonte permanece indisponível por decisão de projeto.</li>
+    <li>Hierarquia de referência: bula oficial/ANVISA → diretriz de sociedade → protocolo institucional → literatura revisada por pares.</li>
+  </ul>
+  <div class="warnbox" role="note" style="margin-top:4px">
+    <strong>Uso clínico exige conferência independente</strong> de indicação, faixa posológica, bula oficial, prescrição, protocolo local, compatibilidade do diluente, estabilidade, via, concentração e capacidade da bomba.
+  </div>
+</section>
+
+<details id="selftest">
+  <summary>Autoteste de cálculo (verificação interna)</summary>
+  <div id="selftest-out" class="muted" style="font-size:12.5px"></div>
+</details>
+
+<footer style="border-top:1px solid var(--line); margin-top:20px; padding-top:14px; font-size:12px; color:var(--muted)">
+  <p style="margin:0 0 6px"><strong>Versão 2 — 2026-11-08.</strong> Reconstrução auditada de <code>infusao-continua-bic.html</code> (v1). Zero dependências externas, executável offline.</p>
+  <p class="noprint" style="margin:0">Cálculo aritmético não equivale a prescrição. Confira sempre o protocolo institucional vigente.</p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================================================================ *
+   * 1. Catálogo — nomes apenas, sem doses
+   * ================================================================ */
+  var CATALOGO = [
+    'Adrenalina', 'Amiodarona', 'Atracúrio', 'Cetamina', 'Cisatracúrio',
+    'Dexmedetomidina', 'Dobutamina', 'Dopamina', 'Esmolol', 'Fenilefrina',
+    'Fentanila', 'Furosemida', 'Heparina não fracionada', 'Insulina regular',
+    'Isoproterenol', 'Labetalol', 'Lidocaína', 'Midazolam', 'Milrinona',
+    'Morfina', 'Nicardipina', 'Nitroglicerina', 'Nitroprussiato de sódio',
+    'Noradrenalina', 'Propofol', 'Remifentanila', 'Rocurônio',
+    'Sulfato de magnésio', 'Terlipressina', 'Vasopressina', 'Vecurônio'
+  ].sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+
+  var PESO_UNIDADE = { mg: 1000, mcg: 1, U: 1, UI: 1, mU: 0.001 };
+
+  /* ================================================================ *
+   * 2. Utilidades
+   * ================================================================ */
+  var $ = function (id) { return document.getElementById(id); };
+
+  function num(id) {
+    var el = $(id);
+    if (!el) { return NaN; }
+    var v = el.value.trim();
+    if (v === '') { return NaN; }
+    var n = Number(v);
+    return isFinite(n) ? n : NaN;
+  }
+
+  function fmt(v, dec) {
+    if (typeof v !== 'number' || !isFinite(v)) { return '—'; }
+    if (dec === undefined) { dec = 4; }
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 0, maximumFractionDigits: dec
+    }).format(v);
+  }
+
+  /* ================================================================ *
+   * 3. Núcleo de cálculo — funções puras
+   * ================================================================ */
+
+  // Analisa a unidade da dose: base (massa/atividade), por kg?, por minuto?
+  function infoUnidade(u) {
+    var perkg = u.indexOf('/kg/') !== -1;
+    var permin = /\/min$/.test(u);
+    var base;
+    if (u.indexOf('mcg') === 0) { base = 'mcg'; }
+    else if (u.indexOf('mg') === 0) { base = 'mg'; }
+    else if (u.indexOf('mU') === 0) { base = 'mU'; }
+    else { base = 'U'; }
+    return { perkg: perkg, permin: permin, base: base };
+  }
+
+  function familia(u) {
+    if (u === 'mg' || u === 'mcg') { return 'massa'; }
+    return 'atividade';
+  }
+
+  // Conversão com bloqueio explícito entre famílias
+  function converter(valor, de, para) {
+    if (!isFinite(valor) || !(de in PESO_UNIDADE) || !(para in PESO_UNIDADE)) {
+      return { valor: NaN, erro: 'unidade desconhecida' };
+    }
+    if (familia(de) !== familia(para)) {
+      return { valor: NaN, erro: 'conversão entre massa e atividade não é permitida' };
+    }
+    return { valor: valor * PESO_UNIDADE[de] / PESO_UNIDADE[para], erro: null };
+  }
+
+  // Dose por hora, já em unidade base
+  function doseHoraria(dose, unidade, peso) {
+    var u = infoUnidade(unidade);
+    if (!isFinite(dose) || dose < 0) { return NaN; }
+    if (u.perkg && !(peso > 0)) { return NaN; }
+    return dose * (u.perkg ? peso : 1) * (u.permin ? 60 : 1);
+  }
+
+  /**
+   * Núcleo do preparo.
+   * concentração final = quantidade total (na base da dose) / volume final
+   * volume a aspirar   = (quantidade total convertida para a unidade da ampola) / teor da ampola × volume da ampola
+   * diluente           = volume final − volume aspirado
+   * vazão              = dose horária / concentração
+   */
+  function preparo(p) {
+    var u = infoUnidade(p.unidade);
+    var avisos = [];
+    var out = { u: u, conc: NaN, aspirado: NaN, diluente: NaN, vazao: NaN, avisos: avisos };
+
+    var tot = converter(p.totalQtd, p.totalUnid, u.base);
+    if (tot.erro) { avisos.push('Quantidade total: ' + tot.erro + '.'); }
+    if (!(p.volumeFinal > 0)) { avisos.push('Volume final precisa ser maior que zero.'); }
+
+    if (isFinite(tot.valor) && p.volumeFinal > 0) {
+      out.conc = tot.valor / p.volumeFinal;
+    }
+
+    // Volume a aspirar — depende da apresentação
+    if (isFinite(p.ampQtd) && p.ampQtd > 0 && isFinite(p.ampVol) && p.ampVol > 0 && isFinite(p.totalQtd)) {
+      var naAmpola = converter(p.totalQtd, p.totalUnid, p.ampUnid);
+      if (naAmpola.erro) {
+        avisos.push('Apresentação: ' + naAmpola.erro + '.');
+      } else if (isFinite(naAmpola.valor)) {
+        out.aspirado = naAmpola.valor / p.ampQtd * p.ampVol;
+      }
+    }
+
+    if (isFinite(out.aspirado) && p.volumeFinal > 0) {
+      out.diluente = p.volumeFinal - out.aspirado;
+      if (out.diluente < 0) {
+        avisos.push('Volume final menor que o volume a aspirar: preparo impossível.');
+      }
+    }
+
+    var h = doseHoraria(p.dose, p.unidade, p.peso);
+    if (isFinite(h) && out.conc > 0) {
+      out.vazao = h / out.conc;
+    }
+
+    return out;
+  }
+
+  // Arredondamento pela resolução da bomba + dose realmente administrada
+  function arredondar(vazao, resolucao) {
+    if (!isFinite(vazao) || !(resolucao > 0)) { return { vazao: NaN, doseReal: NaN, desvio: NaN }; }
+    var v = Math.round(vazao / resolucao) * resolucao;
+    // corrige ruído de ponto flutuante
+    v = Math.round(v * 1e6) / 1e6;
+    return { vazao: v };
+  }
+
+  // Dose reversa a partir da vazão efetiva
+  function doseReversa(vazaoArred, conc, unidade, peso) {
+    var u = infoUnidade(unidade);
+    if (!isFinite(vazaoArred) || !(conc > 0)) { return NaN; }
+    if (u.perkg && !(peso > 0)) { return NaN; }
+    return vazaoArred * conc / (u.perkg ? peso : 1) / (u.permin ? 60 : 1);
+  }
+
+  /* ================================================================ *
+   * 4. Estado
+   * ================================================================ */
+  var STORE_KEY = 'bic_v2';
+  var medicamento = CATALOGO[0];
+  var populacao = 'adulto';
+  var abaAtiva = 'calc';
+  var ultimo = null;
+
+  var CAMPOS = ['peso', 'idade', 'unidade', 'dose', 'ampQtd', 'ampUnid', 'ampVol',
+                'totalQtd', 'totalUnid', 'volumeFinal', 'resolucao', 'diluente',
+                'k', 'vazaoAlvo', 'fMin', 'fUsualMin', 'fUsualMax', 'fMax', 'fAbs', 'fonte'];
+
+  /* ================================================================ *
+   * 5. Leitura e validação
+   * ================================================================ */
+  function ler() {
+    var peso = num('peso'), dose = num('dose');
+    var unidade = $('unidade').value;
+    var u = infoUnidade(unidade);
+    var erros = [], faltando = [];
+
+    // Peso
+    var pesoOk = true;
+    if (u.perkg) {
+      pesoOk = isFinite(peso) && peso >= 0.3 && peso <= 300;
+      $('peso').setAttribute('aria-invalid', pesoOk ? 'false' : 'true');
+      if (!isFinite(peso)) { faltando.push('peso'); $('h-peso').textContent = 'Obrigatório para dose por kg.'; $('h-peso').className = 'hint err'; }
+      else if (!pesoOk) { erros.push('Peso fora da faixa (0,3 a 300 kg).'); $('h-peso').textContent = 'Aceita 0,3 a 300 kg.'; $('h-peso').className = 'hint err'; }
+      else { $('h-peso').textContent = ''; $('h-peso').className = 'hint'; }
+    } else {
+      $('peso').setAttribute('aria-invalid', 'false');
+      $('h-peso').textContent = 'Não exigido nesta unidade.';
+      $('h-peso').className = 'hint';
+    }
+
+    // Dose
+    var doseOk = isFinite(dose) && dose >= 0;
+    $('dose').setAttribute('aria-invalid', doseOk ? 'false' : 'true');
+    if (!isFinite(dose)) { faltando.push('dose'); $('h-dose').textContent = 'Campo obrigatório.'; $('h-dose').className = 'hint err'; }
+    else if (!doseOk) { erros.push('Dose não pode ser negativa.'); $('h-dose').textContent = 'Valor ≥ 0.'; $('h-dose').className = 'hint err'; }
+    else { $('h-dose').textContent = ''; $('h-dose').className = 'hint'; }
+
+    // Quantidade total
+    var tot = num('totalQtd');
+    var totOk = isFinite(tot) && tot > 0;
+    $('totalQtd').setAttribute('aria-invalid', totOk ? 'false' : 'true');
+    if (!isFinite(tot)) { faltando.push('quantidade total'); $('h-totalQtd').textContent = 'Campo obrigatório.'; $('h-totalQtd').className = 'hint err'; }
+    else if (!totOk) { erros.push('Quantidade total precisa ser maior que zero.'); $('h-totalQtd').textContent = 'Valor > 0.'; $('h-totalQtd').className = 'hint err'; }
+    else { $('h-totalQtd').textContent = ''; $('h-totalQtd').className = 'hint'; }
+
+    // Volume final
+    var vf = num('volumeFinal');
+    var vfOk = isFinite(vf) && vf > 0;
+    $('volumeFinal').setAttribute('aria-invalid', vfOk ? 'false' : 'true');
+    if (!isFinite(vf)) { faltando.push('volume final'); $('h-volumeFinal').textContent = 'Campo obrigatório.'; $('h-volumeFinal').className = 'hint err'; }
+    else if (!vfOk) { erros.push('Volume final precisa ser maior que zero.'); $('h-volumeFinal').textContent = 'Valor > 0.'; $('h-volumeFinal').className = 'hint err'; }
+    else { $('h-volumeFinal').textContent = ''; $('h-volumeFinal').className = 'hint'; }
+
+    // Apresentação
+    var aq = num('ampQtd'), av = num('ampVol');
+    var ampOk = isFinite(aq) && aq > 0 && isFinite(av) && av > 0;
+    $('ampQtd').setAttribute('aria-invalid', (isFinite(aq) && aq > 0) ? 'false' : 'true');
+    $('ampVol').setAttribute('aria-invalid', (isFinite(av) && av > 0) ? 'false' : 'true');
+    if (isFinite(aq) && !(aq > 0)) { $('h-ampQtd').textContent = 'Valor > 0.'; $('h-ampQtd').className = 'hint err'; }
+    else if (!isFinite(aq)) { $('h-ampQtd').textContent = 'Sem apresentação: volume a aspirar não é calculado.'; $('h-ampQtd').className = 'hint'; }
+    else { $('h-ampQtd').textContent = ''; $('h-ampQtd').className = 'hint'; }
+
+    if (isFinite(av) && !(av > 0)) { $('h-ampVol').textContent = 'Valor > 0.'; $('h-ampVol').className = 'hint err'; }
+    else if (!isFinite(av)) { $('h-ampVol').textContent = 'Sem apresentação: volume a aspirar não é calculado.'; $('h-ampVol').className = 'hint'; }
+    else { $('h-ampVol').textContent = ''; $('h-ampVol').className = 'hint'; }
+
+    return {
+      peso: peso, dose: dose, unidade: unidade,
+      totalQtd: tot, totalUnid: $('totalUnid').value,
+      volumeFinal: vf,
+      ampQtd: aq, ampUnid: $('ampUnid').value, ampVol: av,
+      resolucao: parseFloat($('resolucao').value),
+      erros: erros, faltando: faltando,
+      completo: pesoOk && doseOk && totOk && vfOk,
+      ampOk: ampOk
+    };
+  }
+
+  /* ================================================================ *
+   * 6. Renderização
+   * ================================================================ */
+  function kpi(chave, valor, nota, hero) {
+    return '<div class="kpi' + (hero ? ' hero' : '') + '">' +
+      '<span class="k">' + chave + '</span>' +
+      '<span class="v">' + valor + '</span>' +
+      '<span class="n">' + nota + '</span></div>';
+  }
+
+  function listaAlertas(titulo, lista, classe) {
+    if (!lista.length) { return ''; }
+    var h = '<div class="' + (classe || 'warnbox') + '" role="note"><strong>' + titulo + '</strong>' +
+            '<ul class="alerts" style="margin-top:6px">';
+    for (var i = 0; i < lista.length; i++) { h += '<li>' + lista[i] + '</li>'; }
+    return h + '</ul></div>';
+  }
+
+  function render() {
+    var p = ler();
+    var out = $('resultado');
+
+    if (!p.completo) {
+      var falta = p.faltando.length
+        ? 'Faltam: <strong>' + p.faltando.join(', ') + '</strong>.'
+        : p.erros.join(' ');
+      out.innerHTML = '<div class="note">' + falta +
+        ' A velocidade só é exibida com dose, quantidade total e volume final válidos.</div>';
+      $('status').textContent = '';
+      ultimo = null;
+      renderFaixa(null);
+      return;
+    }
+
+    var r = preparo(p);
+    var arr = arredondar(r.vazao, p.resolucao);
+    var doseReal = doseReversa(arr.vazao, r.conc, p.unidade, p.peso);
+    var desvio = (isFinite(p.dose) && p.dose !== 0 && isFinite(doseReal))
+      ? (doseReal - p.dose) / p.dose * 100 : NaN;
+
+    var alertas = [];
+    var bloqueios = [];
+
+    // Alertas estruturais
+    if (r.avisos.length) { bloqueios = bloqueios.concat(r.avisos); }
+    if (!isFinite(r.conc) || !(r.conc > 0)) { bloqueios.push('Concentração final inválida: confira quantidade total, unidade e volume final.'); }
+    if (!isFinite(r.vazao)) { bloqueios.push('Não foi possível calcular a vazão com os dados atuais.'); }
+    if (!p.ampOk) { alertas.push('Apresentação não informada: volume a aspirar e diluente não são calculados.'); }
+    if (isFinite(r.diluente) && r.diluente < 0) { bloqueios.push('Volume final menor que o volume aspirado: preparo aritmeticamente impossível.'); }
+    if (isFinite(desvio) && Math.abs(desvio) > 1) {
+      alertas.push('Arredondamento pela resolução da bomba altera a dose em <strong>' + fmt(desvio, 2) + '%</strong>.');
+    }
+    if (isFinite(arr.vazao) && arr.vazao <= 0) {
+      alertas.push('Vazão arredondada para zero com a resolução atual — aumentar diluição ou usar bomba de maior resolução.');
+    }
+
+    // Faixa farmacológica (só se informada)
+    var fMin = num('fMin'), fMax = num('fMax'), fAbs = num('fAbs');
+    if (isFinite(fMin) && p.dose < fMin) { alertas.push('Dose prescrita <strong>abaixo</strong> da mínima informada (' + fmt(fMin, 4) + ').'); }
+    if (isFinite(fMax) && p.dose > fMax) { alertas.push('Dose prescrita <strong>acima</strong> da máxima informada (' + fmt(fMax, 4) + ').'); }
+    if (isFinite(fAbs) && p.dose > fAbs) { alertas.push('Dose prescrita <strong>acima do máximo absoluto</strong> informado (' + fmt(fAbs, 4) + ').'); }
+
+    // Fonte
+    if (!$('fonte').value.trim()) {
+      alertas.push('Referência clínica não informada: os limites de dose não estão validados nesta tela.');
+    }
+
+    // Montagem
+    var html = '';
+
+    if (bloqueios.length) {
+      html += listaAlertas('Cálculo bloqueado', bloqueios, 'errbox');
+    }
+
+    html += '<h3>' + medicamento + ' · ' + p.unidade + '</h3>';
+
+    html += '<div class="kpis">';
+    html += kpi('Velocidade na bomba', fmt(arr.vazao, 2) + ' mL/h',
+      'Resolução ' + fmt(p.resolucao, 2) + ' mL/h', true);
+    html += kpi('Concentração final', fmt(r.conc, 4) + ' ' + r.u.base + '/mL',
+      'Quantidade total ÷ volume final');
+    html += kpi('Volume a aspirar', isFinite(r.aspirado) ? fmt(r.aspirado, 3) + ' mL' : '—',
+      p.ampOk ? p.ampQtd + ' ' + p.ampUnid + ' em ' + fmt(p.ampVol, 2) + ' mL' : 'apresentação não informada');
+    html += kpi('Diluente', isFinite(r.diluente) ? fmt(r.diluente, 3) + ' mL' : '—',
+      isFinite(r.diluente) && r.diluente < 0 ? 'inviável' : 'volume final − aspirado');
+    html += '</div>';
+
+    // Checagem reversa
+    if (isFinite(doseReal)) {
+      var okRev = isFinite(desvio) && Math.abs(desvio) <= 1;
+      html += '<div class="' + (okRev ? 'okbox' : 'warnbox') + '" role="note">' +
+        '<strong>Checagem reversa:</strong> a ' + fmt(arr.vazao, 2) + ' mL/h a dose efetivamente administrada é ' +
+        '<strong>' + fmt(doseReal, 4) + ' ' + p.unidade + '</strong>' +
+        (isFinite(desvio) ? ' — desvio de ' + fmt(desvio, 2) + '% em relação à prescrita.' : '.') +
+        (okRev ? ' Dentro de 1%.' : ' <strong>Acima de 1%: reavaliar diluição ou resolução.</strong>') +
+        '</div>';
+    }
+
+    // Tabela de preparo
+    html += '<table><caption>Composição do preparo</caption><thead><tr>' +
+      '<th scope="col">Item</th><th scope="col">Valor</th><th scope="col">Origem</th>' +
+      '</tr></thead><tbody>';
+    html += '<tr><td>Dose prescrita</td><td>' + fmt(p.dose, 4) + ' ' + p.unidade + '</td><td>entrada</td></tr>';
+    html += '<tr><td>Dose por hora</td><td>' + fmt(doseHoraria(p.dose, p.unidade, p.peso), 4) + ' ' + r.u.base + '/h</td><td>calculado</td></tr>';
+    html += '<tr><td>Quantidade total</td><td>' + fmt(p.totalQtd, 4) + ' ' + p.totalUnid + '</td><td>entrada</td></tr>';
+    html += '<tr><td>Volume final</td><td>' + fmt(p.volumeFinal, 3) + ' mL</td><td>entrada</td></tr>';
+    html += '<tr><td>Concentração final</td><td>' + fmt(r.conc, 4) + ' ' + r.u.base + '/mL</td><td>calculado</td></tr>';
+    if (isFinite(r.aspirado)) {
+      html += '<tr><td>Volume a aspirar</td><td>' + fmt(r.aspirado, 3) + ' mL</td><td>calculado</td></tr>';
+    }
+    if (isFinite(r.diluente)) {
+      html += '<tr><td>Diluente</td><td>' + fmt(r.diluente, 3) + ' mL' +
+        ($('diluente').value.trim() ? ' de ' + $('diluente').value.trim() : '') + '</td><td>calculado</td></tr>';
+    }
+    html += '<tr><td>Vazão calculada</td><td>' + fmt(r.vazao, 4) + ' mL/h</td><td>calculado</td></tr>';
+    html += '<tr><td>Vazão após arredondamento</td><td><strong>' + fmt(arr.vazao, 2) + ' mL/h</strong></td><td>resolução ' + fmt(p.resolucao, 2) + '</td></tr>';
+    html += '</tbody></table>';
+
+    html += listaAlertas('Atenção', alertas, 'warnbox');
+
+    html += '<p class="muted" style="font-size:11.5px;margin:10px 0 0">' +
+      'Medicamento: <strong>' + medicamento + '</strong> · População: ' + populacao +
+      ' · ' + (isFinite(p.peso) ? 'Peso ' + fmt(p.peso, 1) + ' kg' : 'sem peso') +
+      ($('diluente').value.trim() ? ' · Diluente: ' + $('diluente').value.trim() : '') +
+      ' · ' + new Date().toLocaleString('pt-BR') + '</p>';
+
+    out.innerHTML = html;
+    ultimo = { medicamento: medicamento, p: p, r: r, arr: arr, doseReal: doseReal, desvio: desvio, alertas: alertas.concat(bloqueios) };
+
+    renderFaixa(p, r, arr);
+    equalizar(p, r);
+    salvar();
+  }
+
+  function renderFaixa(p, r, arr) {
+    var out = $('faixaOut');
+    if (!p || !r) {
+      out.innerHTML = '<p class="muted">Preencha o cálculo para ver a equivalência de cada limite em mL/h.</p>';
+      return;
+    }
+    if (!(r.conc > 0) || !isFinite(r.conc)) {
+      out.innerHTML = '<p class="muted">Concentração inválida: não há como converter a faixa.</p>';
+      return;
+    }
+    var linhas = [
+      ['Mínima', num('fMin')],
+      ['Usual inferior', num('fUsualMin')],
+      ['Usual superior', num('fUsualMax')],
+      ['Prescrita', p.dose],
+      ['Máxima', num('fMax')],
+      ['Máximo absoluto', num('fAbs')]
+    ];
+    var html = '<table><caption>Faixa informada × velocidade equivalente</caption>' +
+      '<thead><tr><th scope="col">Parâmetro</th><th scope="col">Dose</th>' +
+      '<th scope="col" class="num">mL/h</th></tr></thead><tbody>';
+    for (var i = 0; i < linhas.length; i++) {
+      var rotulo = linhas[i][0], d = linhas[i][1];
+      var vaz = NaN;
+      if (isFinite(d)) {
+        var h = doseHoraria(d, p.unidade, p.peso);
+        vaz = h / r.conc;
+      }
+      var destaque = (rotulo === 'Prescrita');
+      html += '<tr' + (destaque ? ' style="background:#243330"' : '') + '>' +
+        '<td>' + rotulo + '</td>' +
+        '<td>' + (isFinite(d) ? fmt(d, 4) + ' ' + p.unidade : '<span class="muted">não estabelecido</span>') + '</td>' +
+        '<td class="num">' + (isFinite(vaz) ? fmt(vaz, 2) : '—') + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    if (!$('fonte').value.trim()) {
+      html += '<div class="warnbox" role="note">Sem referência informada: os limites acima são apenas os números digitados, sem validação.</div>';
+    }
+    out.innerHTML = html;
+  }
+
+  function equalizar(p, r) {
+    var out = $('eqOut');
+    var k = num('k'), alvo = num('vazaoAlvo');
+    var dose = p.dose;
+    var vazao = isFinite(alvo) && alvo > 0 ? alvo : (isFinite(k) && isFinite(dose) ? dose * k : NaN);
+
+    if (!isFinite(vazao) || vazao <= 0 || !isFinite(dose) || dose <= 0) {
+      out.innerHTML = '<div class="note">Informe dose, peso (quando a unidade exige), quantidade total e K ou vazão-alvo para obter a concentração-matemática.</div>';
+      $('btn-aplicar').disabled = true;
+      return;
+    }
+
+    var h = doseHoraria(dose, p.unidade, p.peso);
+    if (!isFinite(h)) {
+      out.innerHTML = '<div class="note">Dose horária inválida: confira peso e unidade.</div>';
+      $('btn-aplicar').disabled = true;
+      return;
+    }
+
+    var concAlvo = h / vazao;
+    var totBase = converter(p.totalQtd, p.totalUnid, p.u.base);
+    if (totBase.erro || !isFinite(totBase.valor) || !(totBase.valor > 0)) {
+      out.innerHTML = '<div class="errbox">Quantidade total inválida ou incompatível em unidade: ' +
+        (totBase.erro || 'valor não positivo') + '.</div>';
+      $('btn-aplicar').disabled = true;
+      return;
+    }
+
+    var volNec = totBase.valor / concAlvo;
+    var asp = r && isFinite(r.aspirado) ? r.aspirado : NaN;
+    var dil = isFinite(asp) ? volNec - asp : NaN;
+    var kEf = vazao / dose;
+    var viavel = isFinite(volNec) && volNec > 0 && (!isFinite(dil) || dil >= 0);
+
+    var html = '<div class="kpis">' +
+      kpi('Concentração-matemática', fmt(concAlvo, 4) + ' ' + p.u.base + '/mL', 'dose horária ÷ vazão') +
+      kpi('Volume final necessário', fmt(volNec, 3) + ' mL', 'quantidade total ÷ concentração') +
+      kpi('Diluente necessário', isFinite(dil) ? fmt(dil, 3) + ' mL' : '—', isFinite(dil) && dil < 0 ? 'inviável' : 'volume final − aspirado') +
+      kpi('K efetivo', fmt(kEf, 4), 'mL/h ÷ dose') +
+      '</div>';
+
+    if (isFinite(dil) && dil < 0) {
+      html += '<div class="errbox">Inviável: volume final necessário é menor que o volume a aspirar. Reduza a quantidade total ou aumente a vazão-alvo.</div>';
+    } else if (!isFinite(asp)) {
+      html += '<div class="warnbox">Sem apresentação informada: o diluente não pode ser conferido. O volume final ainda pode ser aplicado.</div>';
+    } else {
+      html += '<div class="note">Resultado apenas aritmético. Compatibilidade, estabilidade, limite de concentração e tempo de infusão <strong>não</strong> foram verificados.</div>';
+    }
+
+    out.innerHTML = html;
+    $('btn-aplicar').disabled = !viavel;
+    $('btn-aplicar').dataset.volume = String(volNec);
+  }
+
+  /* ================================================================ *
+   * 7. Persistência / cópia
+   * ================================================================ */
+  function salvar() {
+    try {
+      var d = { medicamento: medicamento, populacao: populacao, aba: abaAtiva };
+      CAMPOS.forEach(function (id) { var el = $(id); if (el) { d[id] = el.value; } });
+      localStorage.setItem(STORE_KEY, JSON.stringify(d));
+    } catch (e) { /* indisponível */ }
+  }
+
+  function carregar() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) { return; }
+      var d = JSON.parse(raw);
+      CAMPOS.forEach(function (id) { var el = $(id); if (el && d[id] !== undefined) { el.value = d[id]; } });
+      if (d.medicamento && CATALOGO.indexOf(d.medicamento) !== -1) { medicamento = d.medicamento; }
+      if (d.populacao) { marcarPopulacao(d.populacao); }
+    } catch (e) { /* corrompido */ }
+  }
+
+  function resumo() {
+    if (!ultimo) { return ''; }
+    var p = ultimo.p, r = ultimo.r, arr = ultimo.arr;
+    var linhas = [
+      'INFUSÃO CONTÍNUA — ' + ultimo.medicamento,
+      'População: ' + populacao + (isFinite(p.peso) ? ' | Peso: ' + fmt(p.peso, 1) + ' kg' : ''),
+      'Dose prescrita: ' + fmt(p.dose, 4) + ' ' + p.unidade,
+      'Quantidade total: ' + fmt(p.totalQtd, 4) + ' ' + p.totalUnid + ' em ' + fmt(p.volumeFinal, 3) + ' mL',
+      'Concentração final: ' + fmt(r.conc, 4) + ' ' + r.u.base + '/mL',
+      isFinite(r.aspirado) ? 'Volume a aspirar: ' + fmt(r.aspirado, 3) + ' mL' : '',
+      isFinite(r.diluente) ? 'Diluente: ' + fmt(r.diluente, 3) + ' mL' : '',
+      'VAZÃO: ' + fmt(arr.vazao, 2) + ' mL/h (resolução ' + fmt(p.resolucao, 2) + ')',
+      isFinite(ultimo.doseReal) ? 'Dose efetiva: ' + fmt(ultimo.doseReal, 4) + ' ' + p.unidade +
+        (isFinite(ultimo.desvio) ? ' (desvio ' + fmt(ultimo.desvio, 2) + '%)' : '') : '',
+      'Referência: ' + ($('fonte').value.trim() || 'NÃO INFORMADA'),
+      ultimo.alertas.length ? 'ALERTAS: ' + ultimo.alertas.join(' | ') : 'Alertas: nenhum matemático',
+      '',
+      'Cálculo aritmético. Conferir bula, protocolo e compatibilidade antes do uso.'
+    ];
+    return linhas.filter(function (l) { return l !== ''; }).join('\n');
+  }
+
+  function aviso(msg, tipo) {
+    var st = $('status');
+    st.textContent = msg;
+    st.className = 'hint' + (tipo === 'err' ? ' err' : '');
+    setTimeout(function () { if (st.textContent === msg) { st.textContent = ''; } }, 4000);
+  }
+
+  /* ================================================================ *
+   * 8. Interface
+   * ================================================================ */
+  function renderCatalogo() {
+    var q = $('busca').value.toLocaleLowerCase('pt-BR');
+    var box = $('meds');
+    box.innerHTML = '';
+    var achou = 0;
+    CATALOGO.forEach(function (nome) {
+      if (q && nome.toLocaleLowerCase('pt-BR').indexOf(q) === -1) { return; }
+      achou++;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'med';
+      b.textContent = nome;
+      b.setAttribute('aria-pressed', nome === medicamento ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        medicamento = nome;
+        renderCatalogo();
+        render();
+      });
+      box.appendChild(b);
+    });
+    if (!achou) {
+      var v = document.createElement('span');
+      v.className = 'muted';
+      v.style.fontSize = '12.5px';
+      v.textContent = 'Nenhum medicamento com esse termo.';
+      box.appendChild(v);
+    }
+  }
+
+  function marcarPopulacao(pop) {
+    populacao = pop;
+    document.querySelectorAll('[data-pop]').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.pop === pop ? 'true' : 'false');
+    });
+  }
+
+  function trocarAba(nova) {
+    abaAtiva = nova;
+    document.querySelectorAll('[data-tab]').forEach(function (b) {
+      var sel = b.dataset.tab === nova;
+      b.setAttribute('aria-selected', sel ? 'true' : 'false');
+      b.tabIndex = sel ? 0 : -1;
+    });
+    ['calc', 'eq', 'faixa', 'seg'].forEach(function (k) {
+      var painel = $('p-' + k);
+      if (painel) { painel.hidden = (k !== nova); }
+    });
+  }
+
+  /* ================================================================ *
+   * 9. Autoteste
+   * ================================================================ */
+  function autoteste() {
+    var casos = [];
+    function t(nome, obtido, esperado, tol) {
+      var ok;
+      if (esperado === null) {
+        ok = (obtido === null || (typeof obtido === 'number' && isNaN(obtido)));
+      } else if (typeof esperado === 'number' && tol !== undefined) {
+        ok = typeof obtido === 'number' && isFinite(obtido) && Math.abs(obtido - esperado) <= tol;
+      } else {
+        ok = obtido === esperado;
+      }
+      casos.push({ nome: nome, ok: ok, obtido: obtido, esperado: esperado });
+    }
+
+    // --- Conversões
+    t('1 mg → mcg', converter(1, 'mg', 'mcg').valor, 1000, 1e-9);
+    t('1000 mcg → mg', converter(1000, 'mcg', 'mg').valor, 1, 1e-9);
+    t('1 U → mU', converter(1, 'U', 'mU').valor, 1000, 1e-9);
+    t('1000 mU → U', converter(1000, 'mU', 'U').valor, 1, 1e-9);
+    t('mg → U bloqueado', converter(1, 'mg', 'U').valor, null);
+    t('mg → U tem erro', converter(1, 'mg', 'U').erro !== null, true);
+
+    // --- Unidade
+    var u1 = infoUnidade('mcg/kg/min');
+    t('info mcg/kg/min · perkg', u1.perkg, true);
+    t('info mcg/kg/min · permin', u1.permin, true);
+    t('info mcg/kg/min · base', u1.base, 'mcg');
+    var u2 = infoUnidade('mg/h');
+    t('info mg/h · perkg', u2.perkg, false);
+    t('info mg/h · base', u2.base, 'mg');
+
+    // --- Dose horária
+    t('dose 0,1 mcg/kg/min · 10 kg', doseHoraria(0.1, 'mcg/kg/min', 10), 60, 1e-9);
+    t('dose 0,1 mcg/kg/h · 10 kg', doseHoraria(0.1, 'mcg/kg/h', 10), 1, 1e-9);
+    t('dose 2 mg/h · sem peso', doseHoraria(2, 'mg/h', 0), 2, 1e-9);
+    t('dose 1 mcg/min · sem peso', doseHoraria(1, 'mcg/min', 0), 60, 1e-9);
+    t('dose por kg sem peso → NaN', doseHoraria(0.1, 'mcg/kg/min', NaN), null);
+
+    // --- Preparo clássico: noradrenalina 16 mg em 250 mL, 0,1 mcg/kg/min, 70 kg
+    var p1 = {
+      peso: 70, dose: 0.1, unidade: 'mcg/kg/min',
+      totalQtd: 16, totalUnid: 'mg', volumeFinal: 250,
+      ampQtd: 4, ampUnid: 'mg', ampVol: 4,
+      resolucao: 0.1
+    };
+    var r1 = preparo(p1);
+    t('NA · concentração 16mg/250mL', r1.conc, 64, 1e-9);          // 16000 mcg / 250 = 64
+    t('NA · volume a aspirar', r1.aspirado, 16, 1e-9);             // 16 mg / 4 mg × 4 mL
+    t('NA · diluente', r1.diluente, 234, 1e-9);
+    t('NA · dose horária', doseHoraria(0.1, 'mcg/kg/min', 70), 420, 1e-9);
+    t('NA · vazão', r1.vazao, 6.5625, 1e-9);                       // 420 / 64
+    var a1 = arredondar(r1.vazao, 0.1);
+    t('NA · vazão arredondada', a1.vazao, 6.6, 1e-9);
+    t('NA · dose reversa', doseReversa(a1.vazao, r1.conc, 'mcg/kg/min', 70), 0.100571428571, 1e-9);
+    var d1 = (doseReversa(a1.vazao, r1.conc, 'mcg/kg/min', 70) - 0.1) / 0.1 * 100;
+    t('NA · desvio < 1%', Math.abs(d1) < 1, true);
+
+    // --- Ampola em mcg, total em mg (mistura de unidades dentro da mesma família)
+    var p2 = {
+      peso: 10, dose: 5, unidade: 'mcg/kg/min',
+      totalQtd: 50, totalUnid: 'mg', volumeFinal: 50,
+      ampQtd: 50000, ampUnid: 'mcg', ampVol: 5,
+      resolucao: 0.01
+    };
+    var r2 = preparo(p2);
+    t('mcg · concentração', r2.conc, 1000, 1e-9);                  // 50 mg = 50000 mcg / 50 mL
+    t('mcg · aspirado', r2.aspirado, 5, 1e-9);                     // 50000 mcg / 50000 mcg × 5 mL
+    t('mcg · diluente', r2.diluente, 45, 1e-9);
+    t('mcg · vazão', r2.vazao, 3, 1e-9);                           // 5×10×60=3000 mcg/h ÷ 1000 = 3
+
+    // --- Insulina: 100 U em 100 mL, 0,1 U/kg/h, 80 kg
+    var p3 = {
+      peso: 80, dose: 0.1, unidade: 'U/kg/h',
+      totalQtd: 100, totalUnid: 'U', volumeFinal: 100,
+      ampQtd: 100, ampUnid: 'U', ampVol: 1,
+      resolucao: 0.1
+    };
+    var r3 = preparo(p3);
+    t('insulina · concentração', r3.conc, 1, 1e-9);
+    t('insulina · aspirado', r3.aspirado, 1, 1e-9);
+    t('insulina · vazão', r3.vazao, 8, 1e-9);                      // 0,1×80 = 8 U/h ÷ 1 U/mL
+
+    // --- Erro de família
+    var p4 = {
+      peso: 10, dose: 1, unidade: 'mcg/kg/min',
+      totalQtd: 10, totalUnid: 'U', volumeFinal: 100,
+      ampQtd: 1, ampUnid: 'mg', ampVol: 1,
+      resolucao: 0.1
+    };
+    var r4 = preparo(p4);
+    t('família · concentração NaN', isNaN(r4.conc), true);
+    t('família · aviso presente', r4.avisos.length > 0, true);
+
+    // --- Volume final insuficiente
+    var p5 = {
+      peso: 10, dose: 1, unidade: 'mcg/kg/min',
+      totalQtd: 10, totalUnid: 'mg', volumeFinal: 2,
+      ampQtd: 10, ampUnid: 'mg', ampVol: 10,
+      resolucao: 0.1
+    };
+    var r5 = preparo(p5);
+    t('preparo inviável · diluente negativo', r5.diluente < 0, true);
+    t('preparo inviável · aviso', r5.avisos.length > 0, true);
+
+    // --- Robustez
+    t('volume final zero · conc NaN', isNaN(preparo({
+      peso: 10, dose: 1, unidade: 'mcg/kg/min', totalQtd: 10, totalUnid: 'mg',
+      volumeFinal: 0, ampQtd: 1, ampUnid: 'mg', ampVol: 1, resolucao: 0.1
+    }).conc), true);
+    t('resolução 0 · vazão NaN', arredondar(5, 0).vazao === null || isNaN(arredondar(5, 0).vazao), true);
+    t('sem NaN em dose 0', doseHoraria(0, 'mcg/kg/min', 10), 0);
+
+    var ok = casos.filter(function (c) { return c.ok; }).length;
+    var html = '<p class="' + (ok === casos.length ? 'okbox' : 'errbox') + '" style="margin:0 0 10px">' +
+      '<strong>Autoteste: ' + ok + '/' + casos.length + ' verificações OK.</strong> ' +
+      (ok === casos.length ? 'Núcleo dimensional consistente.' : 'Há divergências — revisar antes do uso.') + '</p>';
+    html += '<table><thead><tr><th scope="col">Verificação</th><th scope="col">Obtido</th>' +
+      '<th scope="col" class="num">Esperado</th><th scope="col">Status</th></tr></thead><tbody>';
+    casos.forEach(function (c) {
+      var o = (typeof c.obtido === 'number' && isNaN(c.obtido)) ? 'NaN' : String(c.obtido);
+      var e = (c.esperado === null) ? 'NaN/erro' : String(c.esperado);
+      html += '<tr><td>' + c.nome + '</td><td>' + o + '</td><td class="num">' + e + '</td><td>' +
+        (c.ok ? '<span style="color:var(--ok)">OK</span>' : '<span style="color:var(--danger)">FALHA</span>') +
+        '</td></tr>';
+    });
+    html += '</tbody></table>';
+    $('selftest-out').innerHTML = html;
+    return { ok: ok, total: casos.length };
+  }
+
+  /* ================================================================ *
+   * 10. Eventos
+   * ================================================================ */
+  function bind() {
+    ['busca'].forEach(function (id) { $(id).addEventListener('input', renderCatalogo); });
+
+    CAMPOS.forEach(function (id) {
+      var el = $(id);
+      if (!el) { return; }
+      el.addEventListener('input', render);
+      el.addEventListener('change', render);
+    });
+
+    document.querySelectorAll('[data-pop]').forEach(function (b) {
+      b.addEventListener('click', function () { marcarPopulacao(b.dataset.pop); salvar(); });
+    });
+
+    document.querySelectorAll('[data-tab]').forEach(function (b) {
+      b.addEventListener('click', function () { trocarAba(b.dataset.tab); salvar(); });
+      b.addEventListener('keydown', function (ev) {
+        if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+          ev.preventDefault();
+          var ordem = ['calc', 'eq', 'faixa', 'seg'];
+          var i = ordem.indexOf(abaAtiva);
+          var j = ev.key === 'ArrowRight' ? (i + 1) % 4 : (i + 3) % 4;
+          trocarAba(ordem[j]);
+          salvar();
+          var alvo = document.querySelector('[data-tab="' + ordem[j] + '"]');
+          if (alvo) { alvo.focus(); }
+        }
+      });
+    });
+
+    $('btn-aplicar').addEventListener('click', function () {
+      var v = Number($('btn-aplicar').dataset.volume);
+      if (!isFinite(v) || v <= 0) { aviso('Volume inválido.', 'err'); return; }
+      $('volumeFinal').value = String(Math.round(v * 1000) / 1000);
+      trocarAba('calc');
+      render();
+      aviso('Volume final aplicado. Confira o preparo.');
+    });
+
+    $('btn-copiar').addEventListener('click', function () {
+      var txt = resumo();
+      if (!txt) { aviso('Calcule antes de copiar.', 'err'); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function () { aviso('Resultado copiado.'); })
+          .catch(function () { aviso('Cópia bloqueada pelo navegador. Use Imprimir.', 'err'); });
+      } else {
+        aviso('Copiar não é suportado aqui. Use Imprimir.', 'err');
+      }
+    });
+
+    $('btn-imprimir').addEventListener('click', function () { window.print(); });
+
+    $('btn-limpar').addEventListener('click', function () {
+      CAMPOS.forEach(function (id) {
+        var el = $(id);
+        if (!el || id === 'unidade' || id === 'resolucao' || id === 'ampUnid' || id === 'totalUnid') { return; }
+        el.value = '';
+      });
+      $('k').value = '1';
+      $('resolucao').value = '0.1';
+      try { localStorage.removeItem(STORE_KEY); } catch (e) { /* ignorar */ }
+      render();
+      aviso('Campos limpos.');
+      $('peso').focus();
+    });
+  }
+
+  /* ================================================================ *
+   * 11. Início
+   * ================================================================ */
+  function init() {
+    carregar();
+    renderCatalogo();
+    bind();
+    var st = autoteste();
+    trocarAba(abaAtiva || 'calc');
+    render();
+    if (st.ok !== st.total) {
+      $('status').textContent = 'Autoteste com falhas — revisar antes do uso.';
+      $('status').className = 'hint err';
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
