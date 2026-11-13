@@ -356,6 +356,11 @@
   function fmt(v, dec) {
     if (typeof v !== 'number' || !isFinite(v)) { return '—'; }
     if (dec === undefined) { dec = 4; }
+    // Valores pequenos (ex.: vasopressina em U/kg/min, peso de prematuro): mantém 3 algarismos
+    // significativos em vez de arredondar para as casas fixas e exibir dose diferente da digitada.
+    if (Math.abs(v) >= 1e-9 && Math.abs(v) < Math.pow(10, 2 - dec)) {
+      return new Intl.NumberFormat('pt-BR', { maximumSignificantDigits: 3 }).format(v);
+    }
     return new Intl.NumberFormat('pt-BR', {
       minimumFractionDigits: 0, maximumFractionDigits: dec
     }).format(v);
@@ -449,7 +454,9 @@
   // Arredondamento pela resolução da bomba + dose realmente administrada
   function arredondar(vazao, resolucao) {
     if (!isFinite(vazao) || !(resolucao > 0)) { return { vazao: NaN, doseReal: NaN, desvio: NaN }; }
-    var v = Math.round(vazao / resolucao) * resolucao;
+    // + 1e-9: empate exato (ex.: 0,75 com resolução 0,1) arredonda para cima, como na conta manual,
+    // sem depender do ruído de ponto flutuante (0,7499999… virava 0,7)
+    var v = Math.round(vazao / resolucao + 1e-9) * resolucao;
     // corrige ruído de ponto flutuante
     v = Math.round(v * 1e6) / 1e6;
     return { vazao: v };
@@ -525,8 +532,9 @@
     // Apresentação
     var aq = num('ampQtd'), av = num('ampVol');
     var ampOk = isFinite(aq) && aq > 0 && isFinite(av) && av > 0;
-    $('ampQtd').setAttribute('aria-invalid', (isFinite(aq) && aq > 0) ? 'false' : 'true');
-    $('ampVol').setAttribute('aria-invalid', (isFinite(av) && av > 0) ? 'false' : 'true');
+    // Campos opcionais: vazio não é erro; só marca inválido quando há valor não positivo
+    $('ampQtd').setAttribute('aria-invalid', (isFinite(aq) && !(aq > 0)) ? 'true' : 'false');
+    $('ampVol').setAttribute('aria-invalid', (isFinite(av) && !(av > 0)) ? 'true' : 'false');
     if (isFinite(aq) && !(aq > 0)) { $('h-ampQtd').textContent = 'Valor > 0.'; $('h-ampQtd').className = 'hint err'; }
     else if (!isFinite(aq)) { $('h-ampQtd').textContent = 'Sem apresentação: volume a aspirar não é calculado.'; $('h-ampQtd').className = 'hint'; }
     else { $('h-ampQtd').textContent = ''; $('h-ampQtd').className = 'hint'; }
@@ -595,11 +603,12 @@
     if (!isFinite(r.conc) || !(r.conc > 0)) { bloqueios.push('Concentração final inválida: confira quantidade total, unidade e volume final.'); }
     if (!isFinite(r.vazao)) { bloqueios.push('Não foi possível calcular a vazão com os dados atuais.'); }
     if (!p.ampOk) { alertas.push('Apresentação não informada: volume a aspirar e diluente não são calculados.'); }
-    if (isFinite(r.diluente) && r.diluente < 0) { bloqueios.push('Volume final menor que o volume aspirado: preparo aritmeticamente impossível.'); }
-    if (isFinite(desvio) && Math.abs(desvio) > 1) {
+    // Preparo impossível (diluente negativo) já entra em r.avisos; não repetir a mesma mensagem.
+    var bloqueado = bloqueios.length > 0;
+    if (!bloqueado && isFinite(desvio) && Math.abs(desvio) > 1) {
       alertas.push('Arredondamento pela resolução da bomba altera a dose em <strong>' + fmt(desvio, 2) + '%</strong>.');
     }
-    if (isFinite(arr.vazao) && arr.vazao <= 0) {
+    if (!bloqueado && isFinite(arr.vazao) && arr.vazao <= 0) {
       alertas.push('Vazão arredondada para zero com a resolução atual — aumentar diluição ou usar bomba de maior resolução.');
     }
 
@@ -624,8 +633,9 @@
     html += '<h3>' + medicamento + ' · ' + p.unidade + '</h3>';
 
     html += '<div class="kpis">';
-    html += kpi('Velocidade na bomba', fmt(arr.vazao, 2) + ' mL/h',
-      'Resolução ' + fmt(p.resolucao, 2) + ' mL/h', true);
+    // Com cálculo bloqueado a velocidade não é exibida (evita leitura de número inválido)
+    html += kpi('Velocidade na bomba', bloqueado ? '—' : fmt(arr.vazao, 2) + ' mL/h',
+      bloqueado ? 'cálculo bloqueado — corrija os dados' : 'Resolução ' + fmt(p.resolucao, 2) + ' mL/h', true);
     html += kpi('Concentração final', fmt(r.conc, 4) + ' ' + r.u.base + '/mL',
       'Quantidade total ÷ volume final');
     html += kpi('Volume a aspirar', isFinite(r.aspirado) ? fmt(r.aspirado, 3) + ' mL' : '—',
@@ -635,13 +645,13 @@
     html += '</div>';
 
     // Checagem reversa
-    if (isFinite(doseReal)) {
+    if (!bloqueado && isFinite(doseReal)) {
       var okRev = isFinite(desvio) && Math.abs(desvio) <= 1;
       html += '<div class="' + (okRev ? 'okbox' : 'warnbox') + '" role="note">' +
         '<strong>Checagem reversa:</strong> a ' + fmt(arr.vazao, 2) + ' mL/h a dose efetivamente administrada é ' +
         '<strong>' + fmt(doseReal, 4) + ' ' + p.unidade + '</strong>' +
         (isFinite(desvio) ? ' — desvio de ' + fmt(desvio, 2) + '% em relação à prescrita.' : '.') +
-        (okRev ? ' Dentro de 1%.' : ' <strong>Acima de 1%: reavaliar diluição ou resolução.</strong>') +
+        (okRev ? ' Dentro de 1%.' : (isFinite(desvio) ? ' <strong>Acima de 1%: reavaliar diluição ou resolução.</strong>' : '')) +
         '</div>';
     }
 
@@ -661,8 +671,8 @@
       html += '<tr><td>Diluente</td><td>' + fmt(r.diluente, 3) + ' mL' +
         ($('diluente').value.trim() ? ' de ' + $('diluente').value.trim() : '') + '</td><td>calculado</td></tr>';
     }
-    html += '<tr><td>Vazão calculada</td><td>' + fmt(r.vazao, 4) + ' mL/h</td><td>calculado</td></tr>';
-    html += '<tr><td>Vazão após arredondamento</td><td><strong>' + fmt(arr.vazao, 2) + ' mL/h</strong></td><td>resolução ' + fmt(p.resolucao, 2) + '</td></tr>';
+    html += '<tr><td>Vazão calculada</td><td>' + (bloqueado ? '—' : fmt(r.vazao, 4) + ' mL/h') + '</td><td>' + (bloqueado ? 'bloqueado' : 'calculado') + '</td></tr>';
+    html += '<tr><td>Vazão após arredondamento</td><td><strong>' + (bloqueado ? '—' : fmt(arr.vazao, 2) + ' mL/h') + '</strong></td><td>resolução ' + fmt(p.resolucao, 2) + '</td></tr>';
     html += '</tbody></table>';
 
     html += listaAlertas('Atenção', alertas, 'warnbox');
@@ -674,9 +684,11 @@
       ' · ' + new Date().toLocaleString('pt-BR') + '</p>';
 
     out.innerHTML = html;
-    ultimo = { medicamento: medicamento, p: p, r: r, arr: arr, doseReal: doseReal, desvio: desvio, alertas: alertas.concat(bloqueios) };
+    // Resultado bloqueado não pode ser copiado como se fosse válido
+    ultimo = bloqueado ? null
+      : { medicamento: medicamento, p: p, r: r, arr: arr, doseReal: doseReal, desvio: desvio, alertas: alertas.concat(bloqueios) };
 
-    renderFaixa(p, r, arr);
+    if (bloqueado) { renderFaixa(null); } else { renderFaixa(p, r, arr); }
     equalizar(p, r);
     salvar();
   }
@@ -742,7 +754,8 @@
     }
 
     var concAlvo = h / vazao;
-    var totBase = converter(p.totalQtd, p.totalUnid, p.u.base);
+    var base = infoUnidade(p.unidade).base;
+    var totBase = converter(p.totalQtd, p.totalUnid, base);
     if (totBase.erro || !isFinite(totBase.valor) || !(totBase.valor > 0)) {
       out.innerHTML = '<div class="errbox">Quantidade total inválida ou incompatível em unidade: ' +
         (totBase.erro || 'valor não positivo') + '.</div>';
@@ -757,7 +770,7 @@
     var viavel = isFinite(volNec) && volNec > 0 && (!isFinite(dil) || dil >= 0);
 
     var html = '<div class="kpis">' +
-      kpi('Concentração-matemática', fmt(concAlvo, 4) + ' ' + p.u.base + '/mL', 'dose horária ÷ vazão') +
+      kpi('Concentração-matemática', fmt(concAlvo, 4) + ' ' + base + '/mL', 'dose horária ÷ vazão') +
       kpi('Volume final necessário', fmt(volNec, 3) + ' mL', 'quantidade total ÷ concentração') +
       kpi('Diluente necessário', isFinite(dil) ? fmt(dil, 3) + ' mL' : '—', isFinite(dil) && dil < 0 ? 'inviável' : 'volume final − aspirado') +
       kpi('K efetivo', fmt(kEf, 4), 'mL/h ÷ dose') +
@@ -794,6 +807,7 @@
       var d = JSON.parse(raw);
       CAMPOS.forEach(function (id) { var el = $(id); if (el && d[id] !== undefined) { el.value = d[id]; } });
       if (d.medicamento && CATALOGO.indexOf(d.medicamento) !== -1) { medicamento = d.medicamento; }
+      if (d.aba && ['calc', 'eq', 'faixa', 'seg'].indexOf(d.aba) !== -1) { abaAtiva = d.aba; }
       if (d.populacao) { marcarPopulacao(d.populacao); }
     } catch (e) { /* corrompido */ }
   }
@@ -830,13 +844,29 @@
   /* ================================================================ *
    * 8. Interface
    * ================================================================ */
+  // Busca tolerante a acento e maiúsculas ("lidocaina" encontra "Lidocaína")
+  function semAcento(s) {
+    s = String(s).toLocaleLowerCase('pt-BR');
+    return s.normalize ? s.normalize('NFD').replace(/[̀-ͯ]/g, '') : s;
+  }
+
+  // Sinônimos de nome genérico aceitos só na busca; o catálogo continua apenas com nomes, sem doses
+  var SINONIMOS = {
+    'Adrenalina': 'epinefrina',
+    'Noradrenalina': 'norepinefrina',
+    'Cetamina': 'ketamina quetamina',
+    'Isoproterenol': 'isoprenalina',
+    'Nitroglicerina': 'trinitrato de glicerila',
+    'Heparina não fracionada': 'hnf heparina sodica'
+  };
+
   function renderCatalogo() {
-    var q = $('busca').value.toLocaleLowerCase('pt-BR');
+    var q = semAcento($('busca').value.trim());
     var box = $('meds');
     box.innerHTML = '';
     var achou = 0;
     CATALOGO.forEach(function (nome) {
-      if (q && nome.toLocaleLowerCase('pt-BR').indexOf(q) === -1) { return; }
+      if (q && semAcento(nome + ' ' + (SINONIMOS[nome] || '')).indexOf(q) === -1) { return; }
       achou++;
       var b = document.createElement('button');
       b.type = 'button';
@@ -1026,7 +1056,7 @@
     });
 
     document.querySelectorAll('[data-pop]').forEach(function (b) {
-      b.addEventListener('click', function () { marcarPopulacao(b.dataset.pop); salvar(); });
+      b.addEventListener('click', function () { marcarPopulacao(b.dataset.pop); render(); salvar(); });
     });
 
     document.querySelectorAll('[data-tab]').forEach(function (b) {
