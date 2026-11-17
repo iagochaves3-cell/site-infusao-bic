@@ -473,7 +473,6 @@
   /* ================================================================ *
    * 4. Estado
    * ================================================================ */
-  var STORE_KEY = 'bic_v2';
   var medicamento = CATALOGO[0];
   var populacao = 'adulto';
   var abaAtiva = 'calc';
@@ -792,25 +791,12 @@
   /* ================================================================ *
    * 7. Persistência / cópia
    * ================================================================ */
-  function salvar() {
-    try {
-      var d = { medicamento: medicamento, populacao: populacao, aba: abaAtiva };
-      CAMPOS.forEach(function (id) { var el = $(id); if (el) { d[id] = el.value; } });
-      localStorage.setItem(STORE_KEY, JSON.stringify(d));
-    } catch (e) { /* indisponível */ }
-  }
+  // Sem persistência no navegador (regra do acervo: nenhum armazenamento local, de sessão ou cookie).
+  // Auditoria 14/11/2026: restaurar peso, dose e preparo ao reabrir a página levava os dados
+  // do paciente anterior para o seguinte. Cada abertura começa com os campos vazios.
+  function salvar() { /* intencionalmente vazio */ }
 
-  function carregar() {
-    try {
-      var raw = localStorage.getItem(STORE_KEY);
-      if (!raw) { return; }
-      var d = JSON.parse(raw);
-      CAMPOS.forEach(function (id) { var el = $(id); if (el && d[id] !== undefined) { el.value = d[id]; } });
-      if (d.medicamento && CATALOGO.indexOf(d.medicamento) !== -1) { medicamento = d.medicamento; }
-      if (d.aba && ['calc', 'eq', 'faixa', 'seg'].indexOf(d.aba) !== -1) { abaAtiva = d.aba; }
-      if (d.populacao) { marcarPopulacao(d.populacao); }
-    } catch (e) { /* corrompido */ }
-  }
+  function carregar() { /* intencionalmente vazio */ }
 
   function resumo() {
     if (!ultimo) { return ''; }
@@ -1105,7 +1091,6 @@
       });
       $('k').value = '1';
       $('resolucao').value = '0.1';
-      try { localStorage.removeItem(STORE_KEY); } catch (e) { /* ignorar */ }
       render();
       aviso('Campos limpos.');
       $('peso').focus();
