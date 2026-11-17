@@ -586,6 +586,11 @@
       $('status').textContent = '';
       ultimo = null;
       renderFaixa(null);
+      // Dados incompletos: o equalizador não pode manter resultado nem volume da conta anterior,
+      // senão "Aplicar volume final" aplicaria um volume calculado para outros dados.
+      $('eqOut').innerHTML = '<div class="note">Informe dose, peso (quando a unidade exige), quantidade total e K ou vazão-alvo para obter a concentração-matemática.</div>';
+      $('btn-aplicar').disabled = true;
+      delete $('btn-aplicar').dataset.volume;
       return;
     }
 
